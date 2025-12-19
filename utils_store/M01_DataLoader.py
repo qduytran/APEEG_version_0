@@ -16,18 +16,6 @@ def create_directory(directory):
     """Ensure the input directory exists."""
     os.makedirs(directory, exist_ok=True)
 
-# def sort_by_eeg_standard(channel):
-#     eeg_standard_order = [
-#     "Fp1", "Fp2", "F7", "F3", "Fz", "F4", "F8", "T3", "C3", "Cz", "C4", 
-#     "T4", "T5", "P3", "Pz", "P4", "T6", "O1", "O2", "A1", "A2"
-#     ]
-#     # Tìm xem kênh có trùng một phần với kênh trong chuẩn không
-#     for i, standard_channel in enumerate(eeg_standard_order):
-#         if standard_channel in channel or channel in standard_channel:
-#             return i
-#     # Đưa những kênh không có trong danh sách chuẩn xuống cuối
-#     return len(eeg_standard_order)    
-
 def sort_by_eeg_standard(channel_name):
     # 1. Danh sách chuẩn hiện đại (Hệ thống 10-10)
     # Không cần liệt kê T3, T4 vào list này
