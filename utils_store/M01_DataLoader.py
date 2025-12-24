@@ -16,9 +16,11 @@ def create_directory(directory):
     """Ensure the input directory exists."""
     os.makedirs(directory, exist_ok=True)
 
-def sort_by_eeg_standard(channel_name):
+def get_sorted_eeg_channels(channel_list):
+    """
+    Hàm nhận vào list channel và trả về list đã được sắp xếp theo chuẩn EEG 10-10.
+    """
     # 1. Danh sách chuẩn hiện đại (Hệ thống 10-10)
-    # Không cần liệt kê T3, T4 vào list này
     STANDARD_ORDER = [
         'FP1', 'FPZ', 'FP2', 'AF7', 'AF3', 'AFZ', 'AF4', 'AF8',
         'F9', 'F7', 'F5', 'F3', 'F1', 'FZ', 'F2', 'F4', 'F6', 'F8', 'F10',
@@ -30,33 +32,23 @@ def sort_by_eeg_standard(channel_name):
         'O1', 'OZ', 'O2', 'I1', 'IZ', 'I2'
     ]
     
-    # Tạo map index cơ bản
+    # 2. Xử lý Mapping và Alias
     order_map = {name: i for i, name in enumerate(STANDARD_ORDER)}
+    aliases = {'T3': 'T7', 'T4': 'T8', 'T5': 'P7', 'T6': 'P8', 'M1': 'A1', 'M2': 'A2'}
     
-    # 2. Xử lý ALIAS (Ánh xạ tên cũ sang vị trí tên mới)
-    # Đây là bước quan trọng giúp T3/T4 đứng đúng chỗ
-    aliases = {
-        'T3': 'T7',
-        'T4': 'T8',
-        'T5': 'P7',
-        'T6': 'P8',
-        'M1': 'A1', # Mastoid
-        'M2': 'A2'
-    }
-    
-    # Thêm alias vào map: T3 sẽ có index bằng index của T7
-    for old_name, new_name in aliases.items():
-        if new_name in order_map:
-            order_map[old_name] = order_map[new_name]
+    # Gộp alias vào order_map
+    for old, new in aliases.items():
+        if new in order_map:
+            order_map[old] = order_map[new]
 
-    # 3. Chuẩn hóa tên đầu vào
-    clean_name = str(channel_name).upper().strip()
-    
-    # 4. Trả về kết quả
-    if clean_name in order_map:
-        return (0, order_map[clean_name])
-    else:
-        return (1, clean_name)
+    # 3. Định nghĩa logic sắp xếp (Internal Function)
+    def internal_key(ch_name):
+        clean = str(ch_name).upper().strip()
+        if clean in order_map:
+            return (0, order_map[clean]) # Nhóm 0: Kênh chuẩn, sắp xếp theo index
+        return (1, clean)              # Nhóm 1: Kênh lạ, sắp xếp theo tên (A-Z)
+
+    return sorted(list(channel_list), key=internal_key)
 
 @st.cache_resource
 def read_eegf(file_path):
@@ -213,24 +205,24 @@ def ui_select_channels(raw_dataset, purpose=None):
 
     if not isinstance(raw_dataset, list) or not all(hasattr(rd, "ch_names") for rd in raw_dataset):
         raw_data = raw_dataset
-        return st.sidebar.multiselect(
+        selected_channels = st.sidebar.multiselect(
             'Choose EEG channels:',
             options=raw_data.ch_names,
             default=raw_data.ch_names
         )
+
     else:
         list_channels = set()
-        # list_patient_names = []
         for raw_data in raw_dataset:
-            patient_name = get_id_subject(raw_data)
-            # list_patient_names.append(patient_name)
             list_channels.update(raw_data.ch_names)
-        all_channels_sorted = sorted(list(list_channels), key=sort_by_eeg_standard)
+        all_channels_sorted = get_sorted_eeg_channels(list_channels)
 
-        return st.sidebar.multiselect(
+        selected_channels = st.sidebar.multiselect(
             'Choose EEG channels:',
             options=all_channels_sorted,
             default=all_channels_sorted,
             key = purpose
         )
+    
+    return get_sorted_eeg_channels(selected_channels)
 

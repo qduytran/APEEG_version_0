@@ -4,7 +4,7 @@ import numpy as np
 import streamlit as st
 from fooof import FOOOF
 from typing import List
-from utils_store.M01_DataLoader import ui_select_channels, get_id_subject
+from utils_store.M01_DataLoader import ui_select_channels, get_id_subject, get_sorted_eeg_channels
 
 
 class PSDSettings:

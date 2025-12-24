@@ -182,7 +182,6 @@ def ui_adjust_param_fooof():
     return None, None
 
 def UI_feature_extraction(raw_dataset):
-
     st.sidebar.header("", divider="orange")
     st.sidebar.header(":orange[Feature Extraction]")
 
@@ -190,46 +189,48 @@ def UI_feature_extraction(raw_dataset):
     psd_settings = ui_adjust_param_psd()
     pe_settings, ape_settings = ui_adjust_param_fooof()
 
+    if st.sidebar.button("🚀 Run Feature Extraction", use_container_width=True):
+        with st.spinner("Extracting features... please wait."):
+            features_subjects = ext_features_subjects(
+                raw_dataset=raw_dataset,
+                psd_settings=psd_settings,
+                channel_names=selected_channels,
+                pe_settings=pe_settings, 
+                ape_settings=ape_settings
+            )
+            st.subheader("Fitting Results")
+            st.dataframe(features_subjects)
+            return features_subjects 
     st.sidebar.header("", divider="orange")
-
-    features_subjects = ext_features_subjects(raw_dataset=raw_dataset,
-                                              psd_settings=psd_settings,
-                                              channel_names=selected_channels,
-                                              pe_settings=pe_settings, 
-                                              ape_settings=ape_settings)
     
-    st.subheader("", divider="rainbow")
-    st.subheader("Fitting Results")
-    st.dataframe(features_subjects)
+    return None 
 
-    return features_subjects
+# def UI_feature_extraction_groups(eeg_groups, num_groups):
 
-def UI_feature_extraction_groups(eeg_groups, num_groups):
-
-    st.sidebar.header("", divider="orange")
-    st.sidebar.header(":orange[Feature Extraction]")
+#     st.sidebar.header("", divider="orange")
+#     st.sidebar.header(":orange[Feature Extraction]")
     
-    selected_channels = ui_select_channels(raw_dataset=eeg_groups[0])
-    psd_settings = ui_adjust_param_psd()
-    pe_settings, ape_settings = ui_adjust_param_fooof()
+#     selected_channels = ui_select_channels(raw_dataset=eeg_groups[0])
+#     psd_settings = ui_adjust_param_psd()
+#     pe_settings, ape_settings = ui_adjust_param_fooof()
 
-    st.subheader("", divider="rainbow")
-    st.subheader("Fitting Results")
+#     st.subheader("", divider="rainbow")
+#     st.subheader("Fitting Results")
 
-    features_subjects_groups = []
-    for i in range(num_groups):
-        raw_dataset = eeg_groups[i]
-        features_subjects = ext_features_subjects(raw_dataset=raw_dataset,
-                                            psd_settings=psd_settings,
-                                            channel_names=selected_channels,
-                                            pe_settings=pe_settings, 
-                                            ape_settings=ape_settings)
+#     features_subjects_groups = []
+#     for i in range(num_groups):
+#         raw_dataset = eeg_groups[i]
+#         features_subjects = ext_features_subjects(raw_dataset=raw_dataset,
+#                                             psd_settings=psd_settings,
+#                                             channel_names=selected_channels,
+#                                             pe_settings=pe_settings, 
+#                                             ape_settings=ape_settings)
         
-        st.markdown(f"Group {i+1}")
-        st.dataframe(features_subjects)
-        features_subjects_groups.append(features_subjects)
+#         st.markdown(f"Group {i+1}")
+#         st.dataframe(features_subjects)
+#         features_subjects_groups.append(features_subjects)
     
-    return features_subjects_groups
+#     return features_subjects_groups
 
 
 def ui_plot_topo(raw_dataset, features_subjects):
