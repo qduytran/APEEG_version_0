@@ -21,8 +21,9 @@ def show_feature_extraction():
             ui_plot_topo(df_features_subjects=st.session_state.df_features_subjects, 
                          selected_features=selected_features)
             
-            ui_plot_feature_line(df_features_subjects=st.session_state.df_features_subjects,
-                                 selected_features=selected_features)
+            ui_plot_feature_line(df_g1=st.session_state.df_features_subjects,
+                                 selected_features=selected_features, name_g1=None, name_g2=None)
+
             
     else:
         st.warning("Please load EEG data in the 'Load & View EEG Data' section before extracting features.")

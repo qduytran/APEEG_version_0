@@ -1,5 +1,5 @@
-APP_VERSION = "v0.7.0"
-LAST_UPDATE = "2025-12-26"
+APP_VERSION = "v0.7.1"
+LAST_UPDATE = "2025-12-27"
 
 import streamlit as st
 from utils_store.M01_DataLoader import delete_folder

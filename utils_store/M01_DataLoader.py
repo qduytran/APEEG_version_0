@@ -181,7 +181,6 @@ def ui_eeg_groups_uploader(input_path):
         st.error("No EEG data uploaded. Please upload valid EEG files.")
         return None, None
 
-
 def ui_select_subject(raw_dataset):
     """Giao diện chọn subject từ danh sách."""
     list_subject_names = get_id_subjects(raw_dataset)

@@ -11,7 +11,6 @@ from scipy.stats import ttest_ind
 from utils_store.M01_DataLoader import ui_select_channels, get_id_subject
 from utils_store.M02_PSDTransform import ui_adjust_param_psd, psd_trans
 
-
 class PSDSettings:
     def __init__(self, f_range=(0.1, 45), n_per_seg=512, n_fft=512):
         self.f_range = f_range
@@ -95,7 +94,6 @@ def ext_features_subject(
     - features: Extracted features for all channels as a flattened array.
 
     """
-
     # Default settings
     pe_settings = pe_settings or FOOOFSettings(f_range=[4, 16], peak_width_limits=[1, 20], max_n_peaks=1,
                                                min_peak_height=0.01, peak_threshold=-5, aperiodic_mode='fixed')
@@ -128,7 +126,6 @@ def ext_features_subject(
 
     features_array = np.array(features).flatten()
     return features_array #xem xet xuat settings
-
 
 def ext_features_subjects(raw_dataset: List[mne.io.Raw], 
                           psd_settings:PSDSettings,
@@ -268,11 +265,13 @@ def plot_two_topomaps_features(df_features_group1, df_features_group2, feature_n
     for feature_name in feature_names:
         
         feature_group1 = select_features_from_df(df_features_group1, feature_name)
+        feature_group2 = select_features_from_df(df_features_group2, feature_name)
+
+        # Mean of all subjects (NxChannels => 1xChannels)
         mean_feature_group1_channels = feature_group1.mean(axis=0)
         mean_feature_group1_values = mean_feature_group1_channels.to_numpy()
         mean_features_group1_dict[feature_name] = mean_feature_group1_values
 
-        feature_group2 = select_features_from_df(df_features_group2, feature_name)
         mean_feature_group2_channels = feature_group2.mean(axis=0)
         mean_feature_group2_values = mean_feature_group2_channels.to_numpy()
         mean_features_group2_dict[feature_name] = mean_feature_group2_values
@@ -280,12 +279,10 @@ def plot_two_topomaps_features(df_features_group1, df_features_group2, feature_n
         all_values_for_scaling.extend(mean_feature_group1_values)
         all_values_for_scaling.extend(mean_feature_group2_values)
 
+        # Subject-wise average (NxChannels => Nx1)
         avg_subjects_g1 = feature_group1.mean(axis=1)
         avg_subjects_g2 = feature_group2.mean(axis=1)
         t_stat, p_val = ttest_ind(avg_subjects_g1, avg_subjects_g2, equal_var=False)
-        p_value_features[feature_name] = {'p_val': p_val}
-        print(p_value_features)
-
 
     for i, feature_name in enumerate(feature_names):
         current_feature_values = np.concatenate([
@@ -294,30 +291,25 @@ def plot_two_topomaps_features(df_features_group1, df_features_group2, feature_n
         ])
         vmin, vmax = current_feature_values.min(), current_feature_values.max()
 
-        # # Định dạng hiển thị p-value
-        # p_str = f"p={p_value_features['p_val']:.3f}" if p_value_features['p_val'] >= 0.001 else "p < .001"
-        # # Thêm dấu * nếu có ý nghĩa thống kê (p < 0.05)
-        # significance = "*" if p_value_features['p_val'] < 0.05 else ""
-        p_str = p_value_features[feature_name]['p_val']
+        # p-value
+        p_value = p_value_features[feature_name]
+        p_str = f"p={p_value:.3f}" if p_value >= 0.001 else "p < .001"
+        significance = "*" if p_value < 0.05 else ""
 
+        axes[0, i].set_title(f'{feature_name} ({p_str}{significance})')
+        
         im1, _ = mne.viz.plot_topomap(mean_features_group1_dict[feature_name], info, axes=axes[0, i], show=False, cmap='RdBu_r', vlim=(vmin, vmax))
-        axes[0, i].set_title(f'{feature_name} ({p_str})')
-        if i == 0:
-            axes[0, i].set_ylabel(name_g1, rotation=90, size='large', labelpad=10) # Thêm nhãn Group 1
+        if i == 0: axes[0, i].set_ylabel(name_g1, rotation=90, size='large', labelpad=10)
 
         im2, _ = mne.viz.plot_topomap(mean_features_group2_dict[feature_name], info, axes=axes[1, i], show=False, cmap='RdBu_r', vlim=(vmin, vmax))
-        if i == 0:
-            axes[1, i].set_ylabel(name_g2, rotation=90, size='large', labelpad=10) # Thêm nhãn Group 2
+        if i == 0: axes[1, i].set_ylabel(name_g2, rotation=90, size='large', labelpad=10)
 
         cbar_ax = fig.add_axes([axes[1, i].get_position().x0, 0.01, axes[1, i].get_position().width, 0.02])
-        cbar = plt.colorbar(im2, cax=cbar_ax, orientation='horizontal')
+        plt.colorbar(im2, cax=cbar_ax, orientation='horizontal')
 
     return fig
 
 def plot_p_value_topomap(df1, df2, feature_names):
-    """
-    Vẽ topomap hiển thị -log10(p-value) giữa 2 nhóm cho các features.
-    """
     sample_feat = df1.columns[0].split('_')[0]
     selected_channels = [c.replace(f"{sample_feat}_", "") for c in df1.filter(like=f"{sample_feat}_").columns]
 
@@ -329,38 +321,30 @@ def plot_p_value_topomap(df1, df2, feature_names):
 
     for i, feat in enumerate(feature_names):
         p_values_feat = []
-        
         for ch in selected_channels:
             col_name = f"{feat}_{ch}"
             
             group1 = df1[col_name]
             group2 = df2[col_name]
             
-            # Thực hiện Welch's t-test (equal_var=False)
+            # Welch's t-test (equal_var=False)
             t_stat, p_val = ttest_ind(group1, group2, equal_var=False)
-            
             # Tránh p-value bằng 0 dẫn đến log = vô cực
             p_val = max(p_val, 1e-10) 
-            
-            # Tính -log10(p)
+            # -log10(p)
             neg_log_p = -np.log10(p_val)
             p_values_feat.append(neg_log_p)
 
         p_values_feat = np.array(p_values_feat)
 
-        # 3. Vẽ Topomap
-        # vmin=0, vmax có thể cố định là 3 (p=0.001) hoặc lấy theo max data
-        # vmax_limit = max(np.nanmax(p_values_feat), 2.0) # Tối thiểu thang đo đến 2 (p=0.01)
-        vmin, vmax = p_values_feat.min(), p_values_feat.max()
-
         im, _ = mne.viz.plot_topomap(
             p_values_feat, info, axes=axes[i], show=False, 
             cmap='Reds',
-            vlim=(0, 2)
-        )
-                
+            # vlim=(p_values_feat.min(), p_values_feat.max())
+            vlim=(0, 2))
+        
+        if i == 0: axes[i].set_ylabel("-log10(p-Value)", rotation=90, size='large', labelpad=10)              
         cbar = plt.colorbar(im, ax=axes[i], orientation='horizontal', pad=0.1, shrink=0.8)
-        cbar.set_label("-log10(p)")
         cbar.ax.axvline(1.301, color='black', linestyle='--')
 
     plt.tight_layout()
@@ -393,6 +377,33 @@ def plot_feature_line(df_features_subjects, feature_name):
     
     return fig
 
+def plot_feature_line(df1, df2=None, feature="CF", name_g1="G1", name_g2="G2"):
+    # 1. Gom dữ liệu (Loop ngắn gọn để xử lý cả 1 hoặc 2 DF)
+    all_data = []
+    for df, name in [(df1, name_g1), (df2, name_g2)]:
+        if df is not None:
+            tmp = select_features_from_df(df, feature).melt(var_name='Channel', value_name='Value')
+            tmp['Group'] = name
+            all_data.append(tmp)
+    
+    df_plot = pd.concat(all_data)
+    df_plot['Channel'] = df_plot['Channel'].str.replace(f'{feature}_', '', regex=False)
+    
+    # 2. Sắp xếp Channel (Lấy order từ các cột thực tế của df1)
+    order = [c.replace(f'{feature}_', '') for c in df1.filter(like=f'{feature}_').columns]
+    df_plot['Channel'] = pd.Categorical(df_plot['Channel'], categories=order, ordered=True)
+    
+    # 3. Vẽ (Hue tự động phân biệt nếu có df2, nếu không thì vẽ 1 đường)
+    fig, ax = plt.subplots(figsize=(12, 3))
+    sns.lineplot(data=df_plot, x='Channel', y='Value', 
+                 hue='Group' if df2 is not None else None, 
+                 marker='o', errorbar='sd', ax=ax, palette='tab10')
+    
+    ax.set_title(f'Global Profile of {feature}', fontweight='bold')
+    ax.grid(True, linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    return fig
+
 def ui_adjust_param_fooof():
     st.sidebar.header("", divider="gray")
     st.sidebar.subheader("FOOOF Adjustments")
@@ -415,12 +426,23 @@ def ui_plot_topo(df_features_subjects, selected_features):
     topo_fig = plot_topomap_features(df_features_subjects=df_features_subjects, feature_names=selected_features)
     st.pyplot(topo_fig)
     
-def ui_plot_feature_line(df_features_subjects, selected_features):
-    st.subheader("", divider="gray")
-    st.subheader("Line Plot")
+def ui_plot_topo_2group(df1, df2, feature_names, name_g1, name_g2):
+    st.header("", divider="rainbow")
+    st.header(":orange[Topographic plot]")
+    
+    topo_fig = plot_two_topomaps_features(df1, df2, feature_names,
+                                          name_g1, name_g2)
+    st.pyplot(topo_fig)
+    
+    topo_p_fig = plot_p_value_topomap(df1, df2, feature_names)
+    st.pyplot(topo_p_fig)
+
+def ui_plot_feature_line(df_g1, selected_features, df_g2=None, name_g1="Group 1", name_g2="Group 2"):
+    st.subheader("Line Plot Analysis", divider="gray")
     for feature in selected_features:
-        line_fig = plot_feature_line(df_features_subjects= df_features_subjects, feature_name= feature)
-        st.pyplot(line_fig)
+        fig = plot_feature_line(df1=df_g1, df2=df_g2, feature=feature, 
+                                name_g1=name_g1, name_g2=name_g2)
+        st.pyplot(fig)
 
 def UI_feature_extraction(raw_dataset, selected_features):
     st.sidebar.header("", divider="orange")
